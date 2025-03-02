@@ -8,6 +8,8 @@ import { useSetup } from '@/app/contexts/setup-context';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import Image from 'next/image';
+import { ModelSelector } from '@/components/ui/setup/model-selector';
+import { getModelConfig } from './models';
 
 // Validation schema
 const formSchema = z.object({
@@ -23,7 +25,9 @@ export default function DetailsPage() {
     n8nApiKey, setN8nApiKey,
     pocketbaseSuperuserEmail, setPocketbaseSuperuserEmail,
     pocketbaseSuperuserPassword, setPocketbaseSuperuserPassword,
-    goToNextStep
+    goToNextStep,
+    aiModel,
+    setAIModel,
   } = useSetup();
   
   const [errors, setErrors] = useState<{
@@ -33,6 +37,7 @@ export default function DetailsPage() {
   }>({});
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [modelError, setModelError] = useState<string>();
   
   const validateForm = () => {
     try {
@@ -41,6 +46,23 @@ export default function DetailsPage() {
         pocketbaseSuperuserEmail,
         pocketbaseSuperuserPassword,
       });
+      
+      // Add AI model validation
+      if (!aiModel?.modelId) {
+        setModelError('Please select an AI model');
+        return false;
+      }
+      
+      const modelConfig = getModelConfig(aiModel.modelId);
+      const missingFields = modelConfig?.fields
+        .filter(field => field.required && !aiModel.config[field.key]);
+      
+      if (missingFields?.length) {
+        setModelError(`Missing required fields: ${missingFields.map(f => f.label).join(', ')}`);
+        return false;
+      }
+      
+      setModelError(undefined);
       setErrors({});
       return true;
     } catch (error) {
@@ -157,6 +179,23 @@ export default function DetailsPage() {
             </div>
           </div>
         </div>
+      </div>
+      
+      <div className="border-t pt-6 mt-6">
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold mb-2">AI Model Configuration</h2>
+          <p className="text-sm text-muted-foreground">
+            Select and configure the AI model for enhanced features
+          </p>
+        </div>
+        
+        <ModelSelector
+          selectedModelId={aiModel?.modelId}
+          modelConfig={aiModel?.config || {}}
+          onModelSelect={(modelId) => setAIModel(modelId, {})}
+          onConfigChange={(config) => setAIModel(aiModel?.modelId!, config)}
+          error={modelError}
+        />
       </div>
       
       <div className="flex justify-between mt-16">

@@ -3,6 +3,11 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
+interface AIModelState {
+  modelId: string;
+  config: Record<string, string>;
+}
+
 interface SetupContextType {
   // Step 1: Details
   n8nApiKey: string;
@@ -17,6 +22,11 @@ interface SetupContextType {
   setPocketbaseSuperuserPassword: (value: string) => void;
   unipileAccountId: string;
   setUnipileAccountId: (value: string) => void;
+  
+  // AI Model Configuration
+  aiModel: AIModelState | null;
+  setAIModel: (modelId: string, config: Record<string, string>) => void;
+  clearAIModel: () => void;
   
   // Step 2: n8n
   n8nSetupComplete: boolean;
@@ -76,6 +86,17 @@ export function SetupProvider({ children }: { children: ReactNode }) {
     setCurrentStep(prev => Math.max(1, prev - 1));
   };
   
+  // AI Model state
+  const [aiModel, setAIModelState] = useState<AIModelState | null>(null);
+  
+  const setAIModel = (modelId: string, config: Record<string, string>) => {
+    setAIModelState({ modelId, config });
+  };
+  
+  const clearAIModel = () => {
+    setAIModelState(null);
+  };
+  
   return (
     <SetupContext.Provider
       value={{
@@ -105,6 +126,9 @@ export function SetupProvider({ children }: { children: ReactNode }) {
         setCurrentStep,
         goToNextStep,
         goToPreviousStep,
+        aiModel,
+        setAIModel,
+        clearAIModel,
       }}
     >
       {children}
