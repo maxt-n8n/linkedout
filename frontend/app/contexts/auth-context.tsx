@@ -1,114 +1,115 @@
-'use client';
+"use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useState, useContext } from 'react';
 import Cookies from 'js-cookie';
+import { useConfig } from '@/hooks/use-config';
 
-interface User {
+// Define the user type
+type User = {
   id: string;
   email: string;
   verified: boolean;
-}
+};
 
-interface AuthContextType {
+// Define the context type
+type AuthContextType = {
   token: string | null;
   setToken: (token: string | null) => void;
   isLoading: boolean;
   logout: () => void;
   login: (email: string, password: string) => Promise<void>;
   user: User | null;
-}
+};
 
+// Create the context with default values
 const AuthContext = createContext<AuthContextType>({
   token: null,
   setToken: () => {},
   isLoading: false,
   logout: () => {},
   login: async () => {},
-  user: null
+  user: null,
 });
 
+export const useAuth = () => useContext(AuthContext);
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  // Add state hooks
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // console.log('Checking stored auth on mount:', {
-    //   localStorage: localStorage.getItem('token'),
-    //   cookie: Cookies.get('auth_token'),
-    //   documentCookie: document.cookie
-    // });
-    
-    const storedToken = localStorage.getItem('token');
-    if (storedToken) {
-      setToken(storedToken);
-    }
-    setIsLoading(false);
-  }, []);
-
+  const [isLoading, setIsLoading] = useState(false);
+  const { config, loading: configLoading } = useConfig();
+  
+  // Add logout function
   const logout = () => {
-    // Clear all auth state
     setToken(null);
     setUser(null);
-    
-    // Clear stored credentials
     localStorage.removeItem('token');
-    Cookies.remove('auth_token', {
-      path: '/',
-      domain: window.location.hostname
-    });
-    
-    // Redirect (using window.location ensures full page refresh)
-    window.location.href = '/login';
+    Cookies.remove('auth_token');
   };
-
+  
+  // Update the login function to use the config
   const login = async (email: string, password: string) => {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_POCKETBASE_URL}/api/collections/_superusers/auth-with-password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        identity: email, 
-        password 
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Login failed');
+    setIsLoading(true);
+    
+    try {
+      // Use config.pocketbaseUrl instead of environment variable directly
+      if (!config.pocketbaseUrl) {
+        throw new Error('PocketBase URL is not configured');
+      }
+      
+      const response = await fetch(`${config.pocketbaseUrl}/api/collections/_superusers/auth-with-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          identity: email, 
+          password 
+        }),
+      });
+      
+      // Rest of the function remains the same
+      if (!response.ok) {
+        throw new Error('Login failed');
+      }
+      
+      const data = await response.json();
+      
+      setToken(data.token);
+      setUser({
+        id: data.record.id,
+        email: data.record.email,
+        verified: data.record.verified
+      });
+      
+      localStorage.setItem('token', data.token);
+      
+      Cookies.set('auth_token', data.token, { 
+        expires: 7,
+        path: '/',
+        domain: window.location.hostname,
+        sameSite: 'lax',
+        secure: false
+      });
+    } catch (err) {
+      throw err;
+    } finally {
+      setIsLoading(false);
     }
-
-    const data = await response.json();
-    
-    setToken(data.token);
-    setUser({
-      id: data.record.id,
-      email: data.record.email,
-      verified: data.record.verified
-    });
-    
-    localStorage.setItem('token', data.token);
-    
-    Cookies.set('auth_token', data.token, { 
-      expires: 7,
-      path: '/',
-      domain: window.location.hostname,
-      sameSite: 'lax',
-      secure: false
-    });
   };
-
+  
+  // Update the provider to include configLoading in isLoading
   return (
-    <AuthContext.Provider value={{ token, setToken, isLoading, logout, login, user }}>
+    <AuthContext.Provider value={{ 
+      token, 
+      setToken, 
+      isLoading: isLoading || configLoading, 
+      logout, 
+      login, 
+      user 
+    }}>
       {children}
     </AuthContext.Provider>
   );
 };
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}; 

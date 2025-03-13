@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Footer } from '@/components/footer';
+import { useConfig } from '@/hooks/use-config';
 
 // Add the TextSnippet interface
 interface TextSnippet {
@@ -234,6 +235,15 @@ export default function ThreadPage() {
   const threadId = searchParams?.get('id');
 
 
+  // Add the config hook
+  const { config } = useConfig();
+
+
+  // Add these state variables at the top with the other useState declarations
+  const [recipientName, setRecipientName] = useState('there');
+  const [lastMessageFromOther, setLastMessageFromOther] = useState('');
+
+
   // Add function to fetch text snippets
   const fetchTextSnippets = async () => {
     if (!token) return;
@@ -242,27 +252,29 @@ export default function ThreadPage() {
     setSnippetsError(null);
     
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL}/webhook/linkedout/snippets`, {
+      const response = await fetch(`/api/proxy?endpoint=linkedout/snippets`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
       
-      if (response.status === 401) {
-        handleLogout();
-        return;
-      }
-      
       if (!response.ok) {
-        throw new Error('Failed to fetch text snippets');
+        throw new Error(`Failed to fetch snippets: ${response.status}`);
       }
       
       const data = await response.json();
-      setSnippets(data.textSnippets || []);
+      
+      // Check if data has the expected structure
+      if (data && data.textSnippets) {
+        setSnippets(data.textSnippets);
+      } else {
+        // If the structure is different, try to adapt
+        setSnippets(Array.isArray(data) ? data : []);
+      }
     } catch (error) {
-      console.error('Error fetching text snippets:', error);
-      setSnippetsError('Failed to load text snippets');
+      console.error('Error fetching snippets:', error);
+      setSnippetsError('Failed to load snippets');
     } finally {
       setIsLoadingSnippets(false);
     }
@@ -319,44 +331,60 @@ export default function ThreadPage() {
   const fetchThread = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL}/webhook/threads?id=${threadId}`, {
+      const response = await fetch(`/api/proxy?endpoint=threads&id=${threadId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
-
-      if (response.status === 401) {
-        handleLogout();
-        return Promise.resolve();
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch thread: ${response.status}`);
       }
-
-      if (!response.ok) throw new Error('Failed to fetch thread');
+      
       const data = await response.json();
       
+      // Check if data has the expected structure
+      if (!data || !Array.isArray(data)) {
+        throw new Error('Invalid thread data format');
+      }
+      
+      // Transform the data into the expected Thread format
       const transformedThread: Thread = {
         id: threadId!,
-        messages: data
-          .map((msg: any) => ({
-            id: msg.id || threadId,
-            content: msg.content,
-            isFromMe: msg.isFromMe,
-            lastUpdated: msg.lastUpdated,
-            linkedinProfileURL: msg.linkedinProfileURL,
-            recipientLinkedInFollowerCount: msg.recipientLinkedInFollowerCount,
-            recipientName: msg.recipientName,
-            avatar: msg.avatar,
-            chatId: msg.chatId
-          }))
-          .sort((a: Message, b: Message) => new Date(a.lastUpdated).getTime() - new Date(b.lastUpdated).getTime())
+        messages: data.map((msg: any) => ({
+          id: msg.id || threadId,
+          content: msg.content,
+          isFromMe: msg.isFromMe,
+          lastUpdated: msg.lastUpdated,
+          linkedinProfileURL: msg.linkedinProfileURL,
+          recipientLinkedInFollowerCount: msg.recipientLinkedInFollowerCount,
+          recipientName: msg.recipientName,
+          avatar: msg.avatar,
+          chatId: msg.chatId
+        }))
+        .sort((a: Message, b: Message) => new Date(a.lastUpdated).getTime() - new Date(b.lastUpdated).getTime())
       };
       
       setThread(transformedThread);
-      return Promise.resolve();
-    } catch (err) {
-      console.error('Thread fetch error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load thread');
-      return Promise.reject(err);
+      
+      // Set the recipient name for the AI draft if messages exist
+      if (transformedThread.messages && transformedThread.messages.length > 0) {
+        const firstMessage = transformedThread.messages[0];
+        setRecipientName(firstMessage.recipientName || 'there');
+        
+        // Find the last message from the other person to reply to
+        const lastMessageFromOther = [...transformedThread.messages]
+          .reverse()
+          .find(msg => msg.isFromMe === 'false');
+        
+        if (lastMessageFromOther) {
+          setLastMessageFromOther(lastMessageFromOther.content);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching thread:', error);
+      setError('Failed to load thread. Please try again.');
     } finally {
       setIsLoading(false);
     }

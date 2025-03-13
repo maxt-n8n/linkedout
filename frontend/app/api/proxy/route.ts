@@ -9,6 +9,7 @@ const ALLOWED_ENDPOINTS = [
   'linkedout/message',
   'linkedout/generate-draft',
   'linkedout/snippets',
+  'threads',
   'auth/login',
   'auth-with-password',
   'api/collections/_superusers/auth-with-password'
@@ -68,7 +69,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing endpoint' }, { status: 400 });
     }
 
-    const response = await fetch(`${process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL}/webhook/${endpoint}`, {
+    // Get the webhook URL from environment variables with fallback
+    const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL || process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL;
+    
+    if (!n8nWebhookUrl) {
+      return NextResponse.json({ error: 'Webhook URL not configured' }, { status: 500 });
+    }
+
+    const response = await fetch(`${n8nWebhookUrl}/webhook/${endpoint}`, {
       method: 'POST',
       headers: {
         'Authorization': token,
@@ -93,7 +101,6 @@ export async function POST(request: Request) {
         },
       });
     }
-
   } catch (error) {
     console.error('Proxy error:', error);
     return NextResponse.json(
@@ -118,7 +125,25 @@ export async function GET(request: Request) {
   }
 
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL}/webhook/${endpoint}`, {
+    // Get the webhook URL from environment variables with fallback
+    const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL || process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL;
+    
+    if (!n8nWebhookUrl) {
+      return NextResponse.json({ error: 'Webhook URL not configured' }, { status: 500 });
+    }
+    
+    // Build the URL with all query parameters except 'endpoint'
+    const apiUrl = new URL(`${n8nWebhookUrl}/webhook/${endpoint}`);
+    
+    // Copy all other query parameters
+    const entries = Array.from(searchParams.entries());
+    for (const [key, value] of entries) {
+      if (key !== 'endpoint') {
+        apiUrl.searchParams.append(key, value);
+      }
+    }
+    
+    const response = await fetch(apiUrl.toString(), {
       headers: {
         'Authorization': token,
         'Content-Type': 'application/json',
@@ -127,7 +152,6 @@ export async function GET(request: Request) {
 
     const data = await response.json();
     return NextResponse.json(data, { status: response.status });
-
   } catch (error) {
     console.error('Proxy error:', error);
     return NextResponse.json(

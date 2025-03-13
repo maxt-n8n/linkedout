@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { Footer } from '@/components/footer';
+import { useConfig } from '@/hooks/use-config';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -16,6 +17,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const { config, loading: configLoading } = useConfig();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +50,11 @@ export default function LoginPage() {
   // Function to check if the service user exists using direct API call
   const checkSetupComplete = async (): Promise<boolean> => {
     try {
-      const pocketbaseUrl = process.env.NEXT_PUBLIC_POCKETBASE_URL;
+      if (!config.pocketbaseUrl) {
+        console.error('PocketBase URL is not configured');
+        return true; // Default to inbox if we can't check
+      }
+      
       const serviceUserEmail = 'linkedout-service-user@n8n.io';
       
       // Get the token from localStorage after login
@@ -59,8 +65,8 @@ export default function LoginPage() {
         return true; // Default to inbox if we can't check
       }
       
-      // Use the token to check if the service user exists
-      const response = await fetch(`${pocketbaseUrl}/api/collections/users/records?filter=(email='${serviceUserEmail}')&fields=id,email`, {
+      // Use config.pocketbaseUrl
+      const response = await fetch(`${config.pocketbaseUrl}/api/collections/users/records?filter=(email='${serviceUserEmail}')&fields=id,email`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

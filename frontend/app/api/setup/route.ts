@@ -35,8 +35,15 @@ export async function POST(request: Request) {
         requestHeaders['Authorization'] = `Bearer ${pocketbaseToken}`;
       }
       
+      // Get the webhook URL from environment variables with fallback
+      const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL || process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL;
+      
+      if (!n8nWebhookUrl) {
+        return NextResponse.json({ error: 'Webhook URL not configured' }, { status: 500 });
+      }
+      
       // Forward to n8n API
-      const response = await fetch(`${process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL}/${endpoint}`, {
+      const response = await fetch(`${n8nWebhookUrl}/${endpoint}`, {
         method: 'POST',
         headers: requestHeaders,
         body: JSON.stringify(body),

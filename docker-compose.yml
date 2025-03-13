@@ -1,16 +1,20 @@
+version: '3'
 services:
   frontend:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
-      args:
-        NEXT_PUBLIC_POCKETBASE_URL: http://localhost:8090
-        NEXT_PUBLIC_N8N_WEBHOOK_URL: http://n8n:5678
+      context: ./frontend
     ports:
       - "3000:3000"
     depends_on:
       - pocketbase
       - n8n
+    env_file:
+      - ./frontend/.env
+    environment:
+      # These will override any values from .env file
+      - POCKETBASE_URL=http://pocketbase:8090
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook
+
     stop_grace_period: 1m
     restart: unless-stopped
 
@@ -38,7 +42,7 @@ services:
       - N8N_USER_MANAGEMENT_DISABLED=true
       - N8N_DIAGNOSTICS_ENABLED=false
       - N8N_PUBLIC_API_DISABLED=false
-      - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:5678/}
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://n8n:5678/}
       - DB_TYPE=sqlite
       - DB_SQLITE_PATH=/home/node/.n8n/database.sqlite
     volumes:

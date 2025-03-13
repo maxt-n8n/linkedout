@@ -1,5 +1,6 @@
 // app/setup/pocketbase/create-service-account.ts
 import { SetupStatus } from './types';
+import { getConfigValue } from '@/lib/config-utils';
 
 interface ServiceAccountCredentials {
   PocketBaseServiceUsername: string;
@@ -19,7 +20,7 @@ export async function createServiceAccount(
     console.log("Creating service account in PocketBase...");
     
     // First, authenticate with PocketBase to get a valid token
-    const pocketbaseUrl = process.env.NEXT_PUBLIC_POCKETBASE_URL;
+    const pocketbaseUrl = await getConfigValue('pocketbaseUrl');
     if (!pocketbaseUrl) {
       throw new Error('PocketBase URL is not configured');
     }

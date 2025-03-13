@@ -1,5 +1,6 @@
 // app/setup/pocketbase/create-pocketbase-tables.ts
 import { SetupStatus } from './types';
+import { getConfigValue } from '@/lib/config-utils';
 
 export async function createPocketbaseTables(
   n8nApiKey: string,
@@ -11,7 +12,7 @@ export async function createPocketbaseTables(
     console.log("Creating tables in PocketBase...");
     
     // First, authenticate with PocketBase to get a valid token
-    const pocketbaseUrl = process.env.NEXT_PUBLIC_POCKETBASE_URL;
+    const pocketbaseUrl = await getConfigValue('pocketbaseUrl');
     if (!pocketbaseUrl) {
       throw new Error('PocketBase URL is not configured');
     }
