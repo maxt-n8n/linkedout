@@ -54,6 +54,7 @@ async function generateDraft(
     toFullName: string;
     messageToReplyTo: string;
     messageCategory: string;
+    chatId: string;
   },
   token: string
 ): Promise<{ draftReply: string }> {
@@ -381,10 +382,12 @@ export default function ThreadPage() {
       const lastMessage = thread?.messages[thread?.messages.length - 1];
       
       const draftResponse = await generateDraft({
-        toFullName: lastMessage?.recipientName || '',
-        messageToReplyTo: lastMessage?.content || '',
-        messageCategory: 'love-your-content'
-      }, token);
+  toFullName: lastMessage?.recipientName || '',
+  messageToReplyTo: lastMessage?.content || '',
+  messageCategory: 'love-your-content',
+  chatId: lastMessage?.chatId || ''
+}, token);
+
       
       setReply(draftResponse.draftReply);
       
