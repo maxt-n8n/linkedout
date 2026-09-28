@@ -109,6 +109,11 @@ If you encounter networking issues:
 3. Complete the setup wizard (go to /setup if you get redirected to /inbox)
 4. Open your n8n workflows and replace any AI model steps with your own (not yet part of setup flow). 
 
+### Via Easypanel Template
+[Easypanel](https://easypanel.io) is a self-hosted Docker deployment platform, and it maintains a one-click deployment template for LinkedOut:
+
+[![Deploy on Easypanel](https://easypanel.io/img/deploy-on-easypanel-40.svg)](https://easypanel.io/templates/linkedout)
+
 ### Via Manual Deployment
 1. **Set up n8n**
    - Create a **Unipile [LinkedIn API]** Header credential with your Unipile API key
